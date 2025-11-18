@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  llama31-training:
+    image: nvcr.io/nvidia/pytorch:24.07-py3
+    container_name: llama31_megatron_training
+    
+    # GPU access
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    
+    # Shared memory and limits
+    shm_size: 32gb
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    
+    # IPC mode for multi-GPU communication
+    ipc: host
+    
+    # Environment variables
+    environment:
+      - CUDA_DEVICE_MAX_CONNECTIONS=1
+      - NCCL_IB_TIMEOUT=19
+      - NVTE_FWD_LAYERNORM_SM_MARGIN=16
+      - NVTE_BWD_LAYERNORM_SM_MARGIN=16
+      - GPUS_PER_NODE=8
+      - NUM_NODES=1
+      - TP_SIZE=1
+      - PP_SIZE=1
+      - CP_SIZE=1
+      - MICRO_BATCH_SIZE=1
+      - GLOBAL_BATCH_SIZE=32
+      - SEQ_LENGTH=4096
+      - LR=5e-5
+      - TRAIN_STEPS=5000
+      - HF_TOKEN=${HF_TOKEN}
+    
+    # Volume mounts
+    volumes:
+      - ../:/workspace
+      - ./checkpoints:/workspace/training/checkpoints
+      - ./tensorboard_logs:/workspace/training/tensorboard_logs
+      - ./data:/workspace/data
+    
+    # Working directory
+    working_dir: /workspace
+    
+    # Keep container running
+    tty: true
+    stdin_open: true
+    
+    # Command to run
+    command: >
+      bash -c "
+        echo '🐳 Setting up Megatron-LM training environment...' &&
+        pip install transformer-engine[pytorch] datasets pandas requests transformers tokenizers &&
+        cd Megatron-LM &&
+        pip install -e . &&
+        echo '✅ Environment setup complete!' &&
+        echo '🚀 Starting training...' &&
+        cd /workspace &&
+        bash training/docker_train_internal.sh
+      "
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Network mode
+    network_mode: host
+
+  # TensorBoard service for monitoring
+  tensorboard:
+    image: tensorflow/tensorflow:latest
+    container_name: llama31_tensorboard
+    
+    ports:
+      - "6006:6006"
+    
+    volumes:
+      - ./tensorboard_logs:/logs
+    
+    command: tensorboard --logdir=/logs --host=0.0.0.0 --port=6006
+    
+    restart: unless-stopped
+
+  # Jupyter notebook for analysis (optional)
+  jupyter:
+    image: jupyter/tensorflow-notebook:latest
+    container_name: llama31_jupyter
+    
+    ports:
+      - "8888:8888"
+    
+    volumes:
+      - ../:/home/jovyan/work
+    
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+    
+    restart: unless-stopped

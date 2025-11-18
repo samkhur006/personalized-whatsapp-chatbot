@@ -1,0 +1,40 @@
+task: hinglish_translation
+custom_dataset: !function utils.load_hinglish_dataset
+output_type: generate_until
+training_split: null
+validation_split: validation
+test_split: test
+doc_to_text: |
+  Hinglish is a mix of English and Hindi written in Roman script. Here are some examples:
+  
+  English: Turn off the lights
+  Hinglish: lights band kar do
+  
+  English: I am going to the market
+  Hinglish: main market ja raha hun
+  
+  English: Call me later
+  Hinglish: mujhe baad mein call karo
+  
+  Now translate this English sentence to Hinglish. Just output the response for this single query. Do no include quotes or Hinglish: phrase anywhere and do not display anymore examples. DO NOT TELL ME YOUR THINKING PROCESS. ONLY DIRECTLY OUTPUT THE CONVERTED TEXT IN HINGLISH. 
+  English: {{english}}
+  Hinglish:
+doc_to_target: "{{hinglish}}"
+generation_kwargs:
+  max_new_tokens: 500
+  temperature: 0.0
+  do_sample: false
+  until: ["\nEnglish:", "</s>","###","."]
+metric_list:
+  - metric: exact_match
+  - metric: bleu
+filter_list:
+  - name: "clean_output"
+    filter:
+      - function: "regex"
+        regex_pattern: "^(?:Hinglish:\\s*)?(.*)"
+      - function: "take_first"
+should_decontaminate: false
+metadata:
+  version: 1.0
+  description: "English to Hinglish translation evaluation"

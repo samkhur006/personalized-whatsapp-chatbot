@@ -1,0 +1,4 @@
+group: hinglish_top
+task:
+  - hinglish_translation
+  - hinglish_perplexity
