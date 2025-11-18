@@ -15,10 +15,8 @@ mkdir -p "$OUTPUT_DIR"
 # Array of models to evaluate
 models=(
     "Qwen/Qwen2.5-14B"
-    "Qwen/Qwen3-14B" 
+    "meta-llama/Llama-3.1-8B-Instruct"
     "Qwen/Qwen3-8B"
-    "zai-org/GLM-4-9B-0414"
-    "zai-org/glm-4-9b-chat-hf"
     # Add your trained model path here:
     # "../training/converted_models/llama31_hinglish_hf"
 )
