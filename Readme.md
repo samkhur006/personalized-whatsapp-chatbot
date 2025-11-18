@@ -14,6 +14,11 @@ This repository contains a complete pipeline for training and evaluating Llama 3
 ```bash
 git clone --recursive git@github.com:samkhur006/personalized-whatsapp-chatbot.git
 cd personalized-whatsapp-chatbot
+
+# Install dependencies
+pip install --no-build-isolation megatron-core[mlm,dev]
+cd Megatron-LM && pip install --no-build-isolation .[mlm,dev] && cd ..
+cd lm-evaluation-harness && pip install -e . && cd ..
 ```
 
 ## 📊 Evaluation Only
@@ -23,7 +28,7 @@ If you just want to evaluate existing models on Hinglish tasks:
 ### **1. Setup Evaluation Environment**
 ```bash
 cd eval
-pip install lm_eval datasets pandas requests transformers tokenizers
+# Dependencies should already be installed from main setup
 ```
 
 ### **2. Run Evaluation**
@@ -62,16 +67,24 @@ chmod +x docker_train.sh
 export HF_TOKEN=your_huggingface_token_here
 ```
 
+#### **Configure Training**
+```bash
+# Edit config.yaml to customize training parameters
+nano config.yaml
+
+# Example modifications:
+# - Change batch sizes, learning rate, training steps
+# - Use different base model or checkpoint
+# - Adjust parallelism settings
+```
+
 #### **Start Training**
 ```bash
-# Default configuration (4 GPUs, 5000 steps)
+# Training uses config.yaml automatically
 ./docker_train.sh
 
-# Custom configuration
+# Override with environment variables if needed
 export GPUS_PER_NODE=8
-export GLOBAL_BATCH_SIZE=64
-export TRAIN_STEPS=10000
-export LR=3e-5
 ./docker_train.sh
 ```
 
@@ -90,8 +103,7 @@ docker-compose up tensorboard
 #### **Setup Environment**
 ```bash
 cd training
-./setup_environment.sh
-source /path/to/your/venv/bin/activate
+./setup_environment.sh  # Creates directories only
 huggingface-cli login
 ```
 
@@ -100,8 +112,12 @@ huggingface-cli login
 python preprocess_hinglish_data.py --use-hinglish-top
 ```
 
-#### **Start Training**
+#### **Configure and Start Training**
 ```bash
+# Edit config.yaml for your training parameters
+nano config.yaml
+
+# Start training (uses config.yaml automatically)
 chmod +x train_llama31_instruct_8b.sh
 ./train_llama31_instruct_8b.sh
 ```
@@ -127,17 +143,25 @@ tensorboard --logdir ./tensorboard_logs
 - **Precision**: BF16
 - **Parallelism**: TP=1, PP=1, CP=1 (configurable)
 
-**Customization:**
-```bash
-# Environment variables for training
-export GPUS_PER_NODE=8          # Number of GPUs
-export TP_SIZE=2                # Tensor parallelism
-export PP_SIZE=1                # Pipeline parallelism
-export GLOBAL_BATCH_SIZE=64     # Global batch size
-export MICRO_BATCH_SIZE=1       # Micro batch size per GPU
-export LR=3e-5                  # Learning rate
-export TRAIN_STEPS=10000        # Training steps
-export SEQ_LENGTH=8192          # Sequence length
+**Customization via config.yaml:**
+```yaml
+# Edit training/config.yaml
+training:
+  micro_batch_size: 1
+  global_batch_size: 64
+  learning_rate: 3e-5
+  train_steps: 10000
+  seq_length: 8192
+
+parallelism:
+  tensor_parallel_size: 2
+  pipeline_parallel_size: 1
+
+model:
+  base_model: "meta-llama/Llama-3.1-8B-Instruct"
+  # Or use a checkpoint:
+  # base_model: "./checkpoints/my_previous_training"
+  # load_from_checkpoint: true
 ```
 
 ## 🔄 Evaluate Trained Model
@@ -210,13 +234,14 @@ personalized-whatsapp-chatbot/
 │   ├── hinglish_perplexity.yaml   # Perplexity task definition
 │   └── utils.py                    # Dataset loading utilities
 ├── training/                       # Training tools
+│   ├── config.yaml                # Training configuration
 │   ├── docker_train.sh            # Docker training script
 │   ├── train_llama31_instruct_8b.sh # Native training script
 │   ├── preprocess_hinglish_data.py # Data preprocessing
 │   ├── convert_megatron_to_hf.py  # Model format conversion
 │   ├── convert_and_eval.sh        # Automated conversion + eval
 │   ├── monitor_training.py        # Training monitoring
-│   ├── setup_environment.sh       # Environment setup
+│   ├── setup_environment.sh       # Directory setup
 │   ├── docker-compose.yml         # Docker Compose config
 │   └── Dockerfile                 # Custom Docker image
 ├── Megatron-LM/                   # Megatron-LM submodule
@@ -245,6 +270,8 @@ personalized-whatsapp-chatbot/
 ## 🔧 Configuration Files
 
 ### **Training Config** (`training/config.yaml`)
+This file contains all training parameters and can be modified as needed:
+
 ```yaml
 model:
   name: "llama31_instruct_8b"
@@ -256,10 +283,23 @@ training:
   seq_length: 4096
   learning_rate: 5e-5
   train_steps: 5000
+  eval_interval: 100
+  save_interval: 500
 
 parallelism:
   tensor_parallel_size: 1
   pipeline_parallel_size: 1
+  context_parallel_size: 1
+
+data:
+  data_prefix: "./data/processed/hinglish_pretrain"
+  tokenizer_model: "meta-llama/Llama-3.1-8B-Instruct"
+  vocab_size: 128256
+
+model:
+  base_model: "meta-llama/Llama-3.1-8B-Instruct"
+  # Use checkpoint: "./checkpoints/my_model"
+  load_from_checkpoint: false
 ```
 
 ### **Docker Compose** (`training/docker-compose.yml`)
@@ -334,17 +374,31 @@ docker run --rm --gpus all nvidia/cuda:11.8-base-ubuntu20.04 nvidia-smi
 
 ## 🔗 Dependencies
 
-### **Core Requirements**
+### **Required Installation Commands**
+```bash
+# 1. Install Megatron Core with required dependencies
+pip install --no-build-isolation megatron-core[mlm,dev]
+
+# 2. Install Megatron-LM from submodule
+cd Megatron-LM
+pip install --no-build-isolation .[mlm,dev]
+cd ..
+
+# 3. Install LM Evaluation Harness from submodule
+cd lm-evaluation-harness
+pip install -e .
+cd ..
+```
+
+### **What gets installed:**
+- **Megatron-LM**: Training framework
 - **PyTorch**: 2.1.0+ with CUDA support
-- **Transformers**: 4.35.0+
-- **Datasets**: 2.14.0+
-- **Megatron-LM**: Latest from submodule
-- **LM Evaluation Harness**: Latest from submodule
+- **Transformers**: 4.35.0+ (HuggingFace)
+- **LM Evaluation Harness**: Model evaluation
+- **All dependencies**: Automatically resolved
 
 ### **Optional**
-- **Transformer Engine**: FP8 training support
-- **Weights & Biases**: Experiment tracking
-- **Docker**: Containerized training
+- **Docker**: Containerized training (recommended)
 
 ## 📊 Results & Benchmarks
 

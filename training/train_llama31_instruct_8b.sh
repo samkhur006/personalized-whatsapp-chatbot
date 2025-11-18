@@ -1,20 +1,40 @@
 #!/bin/bash
 
 # Llama 3.1 Instruct 8B Training Script with Megatron-LM
-# Optimized for instruction tuning and fine-tuning
+# Uses config.yaml for configuration
 
 set -e
 
 # =============================================================================
-# Configuration Parameters
+# Load Configuration
 # =============================================================================
+
+# Check if config.yaml exists
+CONFIG_FILE="./config.yaml"
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo "❌ Configuration file not found: $CONFIG_FILE"
+    exit 1
+fi
+
+# Load configuration from YAML
+echo "📄 Loading configuration from config.yaml..."
+eval $(python3 -c "
+import sys
+sys.path.append('.')
+from config_loader import load_config, config_to_env_vars, print_config_summary
+config = load_config('$CONFIG_FILE')
+print_config_summary(config)
+env_vars = config_to_env_vars(config)
+for key, value in env_vars.items():
+    print(f'export {key}=\"{value}\"')
+")
 
 # Paths
 MEGATRON_PATH="../Megatron-LM"
-CHECKPOINT_PATH=${1:-"./checkpoints/llama31_instruct_8b"}
-TENSORBOARD_LOGS_PATH=${2:-"./tensorboard_logs/llama31_instruct_8b"}
-TOKENIZER_MODEL=${3:-"meta-llama/Llama-3.1-8B-Instruct"}  # HuggingFace model path
-DATA_PREFIX=${4:-"./data/processed/hinglish_instruct"}      # Preprocessed data prefix
+CHECKPOINT_PATH=${1:-"$CHECKPOINT_DIR"}
+TENSORBOARD_LOGS_PATH=${2:-"$TENSORBOARD_DIR"}
+TOKENIZER_MODEL=${3:-"$TOKENIZER_MODEL"}
+DATA_PREFIX=${4:-"$DATA_PREFIX"}
 
 # Create directories
 mkdir -p "$(dirname "$CHECKPOINT_PATH")"
@@ -32,34 +52,25 @@ export NVTE_BWD_LAYERNORM_SM_MARGIN=16
 # =============================================================================
 
 # Distributed training setup
-GPUS_PER_NODE=${GPUS_PER_NODE:-8}
+GPUS_PER_NODE=${GPUS_PER_NODE:-4}
 NUM_NODES=${NUM_NODES:-1}
 MASTER_ADDR=${MASTER_ADDR:-localhost}
 MASTER_PORT=${MASTER_PORT:-6000}
 NODE_RANK=${NODE_RANK:-0}
 WORLD_SIZE=$(($GPUS_PER_NODE*$NUM_NODES))
 
-# Model parallelism
-TP_SIZE=${TP_SIZE:-1}        # Tensor parallel size
-PP_SIZE=${PP_SIZE:-1}        # Pipeline parallel size
-CP_SIZE=${CP_SIZE:-1}        # Context parallel size
+# Model parallelism (loaded from config.yaml)
+# TP_SIZE, PP_SIZE, CP_SIZE are set from config
 
-# Training hyperparameters
-MICRO_BATCH_SIZE=${MICRO_BATCH_SIZE:-1}
-GLOBAL_BATCH_SIZE=${GLOBAL_BATCH_SIZE:-32}  # Smaller for instruction tuning
-SEQ_LENGTH=${SEQ_LENGTH:-4096}              # Reduced for instruction data
+# Training hyperparameters (loaded from config.yaml)
+# MICRO_BATCH_SIZE, GLOBAL_BATCH_SIZE, SEQ_LENGTH, etc. are set from config
 MAX_POSITION_EMBEDDINGS=${MAX_POSITION_EMBEDDINGS:-4096}
 
-# Learning rate and optimization
-LR=${LR:-5e-5}              # Lower LR for instruction tuning
-MIN_LR=${MIN_LR:-5e-6}
-WEIGHT_DECAY=${WEIGHT_DECAY:-0.01}
-WARMUP_STEPS=${WARMUP_STEPS:-100}
-TRAIN_STEPS=${TRAIN_STEPS:-5000}  # Adjust based on your dataset size
+# Learning rate and optimization (loaded from config.yaml)
+# LR, MIN_LR, WEIGHT_DECAY, WARMUP_STEPS, TRAIN_STEPS are set from config
 
-# Precision
-USE_FP8=${USE_FP8:-false}
-USE_BF16=${USE_BF16:-true}
+# Precision (loaded from config.yaml)
+# USE_FP8, USE_BF16 are set from config
 
 # Data cache
 DATA_CACHE_PATH="./cache/llama31_instruct_8b"

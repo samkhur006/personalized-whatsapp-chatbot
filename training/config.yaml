@@ -1,0 +1,49 @@
+# Llama 3.1 Instruct 8B Training Configuration
+
+model:
+  name: "llama31_instruct_8b"
+  base_model: "meta-llama/Llama-3.1-8B-Instruct"  # Can be HF model or checkpoint path
+  # base_model: "./checkpoints/my_previous_training"  # Example: use previous checkpoint
+  load_from_checkpoint: false  # Set to true if base_model is a checkpoint path
+  
+training:
+  # Batch sizes
+  micro_batch_size: 1
+  global_batch_size: 32
+  
+  # Sequence length
+  seq_length: 4096
+  max_position_embeddings: 4096
+  
+  # Learning rate
+  learning_rate: 5e-5
+  min_learning_rate: 5e-6
+  warmup_steps: 100
+  
+  # Training steps
+  train_steps: 5000
+  eval_interval: 100
+  save_interval: 500
+  
+  # Optimization
+  weight_decay: 0.01
+  grad_clip: 1.0
+  
+  # Precision
+  use_bf16: true
+  use_fp8: false
+
+parallelism:
+  tensor_parallel_size: 1
+  pipeline_parallel_size: 1
+  context_parallel_size: 1
+  
+data:
+  data_prefix: "./data/processed/hinglish_pretrain"
+  tokenizer_model: "meta-llama/Llama-3.1-8B-Instruct"
+  vocab_size: 128256
+
+logging:
+  log_interval: 10
+  tensorboard_dir: "./tensorboard_logs"
+  checkpoint_dir: "./checkpoints"
