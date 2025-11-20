@@ -18,12 +18,22 @@ fi
 
 # Load configuration from YAML
 echo "📄 Loading configuration from config.yaml..."
+
+# Print configuration summary
+python3 -c "
+import sys
+sys.path.append('.')
+from config_loader import load_config, print_config_summary
+config = load_config('$CONFIG_FILE')
+print_config_summary(config)
+"
+
+# Load environment variables
 eval $(python3 -c "
 import sys
 sys.path.append('.')
-from config_loader import load_config, config_to_env_vars, print_config_summary
+from config_loader import load_config, config_to_env_vars
 config = load_config('$CONFIG_FILE')
-print_config_summary(config)
 env_vars = config_to_env_vars(config)
 for key, value in env_vars.items():
     print(f'export {key}=\"{value}\"')
@@ -90,28 +100,40 @@ DISTRIBUTED_ARGS=(
 
 MODEL_ARGS=(
     --use-mcore-models
-    --num-layers 32
-    --hidden-size 4096
-    --ffn-hidden-size 14336
-    --num-attention-heads 32
+    --num-layers "$NUM_LAYERS"
+    --hidden-size "$HIDDEN_SIZE"
+    --ffn-hidden-size "$FFN_HIDDEN_SIZE"
+    --num-attention-heads "$NUM_ATTENTION_HEADS"
     --group-query-attention
-    --num-query-groups 8
-    --kv-channels 128
-    --seq-length $SEQ_LENGTH
-    --max-position-embeddings $MAX_POSITION_EMBEDDINGS
-    --position-embedding-type rope
-    --rotary-base 500000
-    --rotary-percent 1.0
-    --attention-dropout 0.0
-    --hidden-dropout 0.0
-    --swiglu
-    --init-method-std 0.0134
-    --attention-backend fused
-    --apply-layernorm-1p
-    --untie-embeddings-and-output-weights
-    --disable-bias-linear
-    --normalization RMSNorm
+    --num-query-groups "$NUM_QUERY_GROUPS"
+    --kv-channels "$KV_CHANNELS"
+    --seq-length "$SEQ_LENGTH"
+    --max-position-embeddings "$MAX_POSITION_EMBEDDINGS"
+    --position-embedding-type "$POSITION_EMBEDDING_TYPE"
+    --rotary-base "$ROTARY_BASE"
+    --rotary-percent "$ROTARY_PERCENT"
+    --attention-dropout "$ATTENTION_DROPOUT"
+    --hidden-dropout "$HIDDEN_DROPOUT"
+    --init-method-std "$INIT_METHOD_STD"
+    --attention-backend "$ATTENTION_BACKEND"
+    --normalization "$NORMALIZATION"
 )
+
+if [[ "$USE_SWIGLU" == "true" ]]; then
+    MODEL_ARGS+=(--swiglu)
+fi
+
+if [[ "$APPLY_LAYERNORM_1P" == "true" ]]; then
+    MODEL_ARGS+=(--apply-layernorm-1p)
+fi
+
+if [[ "$UNTIE_EMBEDDINGS_AND_OUTPUT_WEIGHTS" == "true" ]]; then
+    MODEL_ARGS+=(--untie-embeddings-and-output-weights)
+fi
+
+if [[ "$DISABLE_BIAS_LINEAR" == "true" ]]; then
+    MODEL_ARGS+=(--disable-bias-linear)
+fi
 
 TRAINING_ARGS=(
     --micro-batch-size $MICRO_BATCH_SIZE
@@ -196,7 +218,6 @@ EVAL_AND_LOGGING_ARGS=(
     --tensorboard-dir "$TENSORBOARD_LOGS_PATH"
     --tensorboard-queue-size 5
     --log-timers-to-tensorboard
-    --log-batch-size-to-tensorboard
     --log-validation-ppl-to-tensorboard
 )
 
@@ -242,30 +263,31 @@ if [[ ! -f "$PRETRAIN_SCRIPT" ]]; then
     exit 1
 fi
 
-# Check if data exists (unless using mock data)
-if [[ ! -f "${DATA_PREFIX}_text_document.bin" ]] && [[ ! -f "${DATA_PREFIX}.bin" ]]; then
-    echo "Warning: Training data not found at $DATA_PREFIX"
-    echo "Please run the data preprocessing script first, or use mock data for testing."
-    echo "To use mock data, set DATA_PREFIX to 'MOCK'"
-    
-    if [[ "$DATA_PREFIX" != "MOCK" ]]; then
-        read -p "Continue with mock data? (y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
-        fi
-        # Switch to mock data
-        DATA_ARGS=(
-            --mock-data
-            --tokenizer-type NullTokenizer
-            --vocab-size 128256
-            --data-cache-path "$DATA_CACHE_PATH"
-            --split "99,1,0"
-            --no-create-attention-mask-in-dataloader
-            --num-workers 1
-        )
-        echo "Switched to mock data for testing."
-    fi
+# Check if using mock data or real data
+if [[ "$DATA_PREFIX" == "MOCK" ]] || [[ "$DATA_PREFIX" == "/workspace/MOCK" ]]; then
+    echo "🎭 Using mock data for testing..."
+    DATA_ARGS=(
+        --mock-data
+        --tokenizer-type NullTokenizer
+        --vocab-size $VOCAB_SIZE
+        --split "99,1,0"
+        --no-create-attention-mask-in-dataloader
+        --num-workers 1
+    )
+    echo "✅ Mock data configured."
+elif [[ ! -f "${DATA_PREFIX}_text_document.bin" ]] && [[ ! -f "${DATA_PREFIX}.bin" ]]; then
+    echo "❌ Error: Training data not found at $DATA_PREFIX"
+    echo "Expected files:"
+    echo "  - ${DATA_PREFIX}_text_document.bin"
+    echo "  - ${DATA_PREFIX}_text_document.idx"
+    echo ""
+    echo "Solutions:"
+    echo "1. Run data preprocessing first"
+    echo "2. Use mock data by setting data_prefix: 'MOCK' in config.yaml"
+    exit 1
+else
+    echo "✅ Found training data at $DATA_PREFIX"
+    # Use the DATA_ARGS already defined above for real data
 fi
 
 # =============================================================================

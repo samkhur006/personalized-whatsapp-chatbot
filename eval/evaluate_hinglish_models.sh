@@ -70,10 +70,6 @@ echo ""
 # Evaluate each model
 for model in "${models[@]}"; do
     evaluate_model "$model"
-    
-    # Add a small delay between models to prevent potential issues
-    echo "Waiting 30 seconds before next model..."
-    sleep 30
 done
 
 echo "🎉 All model evaluations completed!"

@@ -9,8 +9,8 @@ echo "🐳 Docker Megatron-LM Training"
 echo "=============================="
 
 # Configuration
-DOCKER_IMAGE=${DOCKER_IMAGE:-"nvcr.io/nvidia/pytorch:24.07-py3"}
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/." && pwd)"
+DOCKER_IMAGE=${DOCKER_IMAGE:-"nvcr.io/nvidia/pytorch:25.04-py3"}
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG_FILE="$PROJECT_ROOT/training/config.yaml"
 
 # Check if config file exists
@@ -19,6 +19,7 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
     exit 1
 fi
 
+# TODO(SAMBHAV): Add this a parameter while running docker
 # Load configuration using Python
 echo "📄 Loading configuration from config.yaml..."
 eval $(python3 -c "
@@ -44,6 +45,19 @@ echo "  Batch Size: $MICRO_BATCH_SIZE micro, $GLOBAL_BATCH_SIZE global"
 echo "  Learning Rate: $LR"
 echo "  Training Steps: $TRAIN_STEPS"
 
+# Auto-detect GPU count
+if command -v nvidia-smi &> /dev/null; then
+    DETECTED_GPUS=$(nvidia-smi --list-gpus | wc -l)
+    echo "🔍 Detected $DETECTED_GPUS GPU(s)"
+else
+    DETECTED_GPUS=1
+    echo "⚠️  nvidia-smi not found, defaulting to 1 GPU"
+fi
+
+# Use detected GPU count or environment override
+GPUS_PER_NODE=${GPUS_PER_NODE:-$DETECTED_GPUS}
+echo "🎯 Using $GPUS_PER_NODE GPU(s) for training"
+
 # Create directories
 mkdir -p "$(dirname "$CHECKPOINT_DIR")"
 mkdir -p "$(dirname "$TENSORBOARD_DIR")"
@@ -63,11 +77,14 @@ if [[ ! -f "$DATA_BIN_FILE" ]]; then
         -v "$PROJECT_ROOT:/workspace" \
         -w "/workspace/training" \
         --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
+        -e PIP_CONSTRAINT= \
         $DOCKER_IMAGE \
-        python preprocess_hinglish_data.py --use-hinglish-top \
-            --output-dir "/workspace/$(dirname "${DATA_PREFIX#/workspace/}")" \
-            --output-prefix "$(basename "${DATA_PREFIX#/workspace/}")" \
-            --tokenizer-model "$TOKENIZER_MODEL"
+        bash -c "pip install datasets transformers tokenizers && \
+                 cd /workspace/training && \
+                 python preprocess_hinglish_data.py --use-hinglish-top \
+                     --output-dir '/workspace/$(dirname "${DATA_PREFIX#/workspace/}")' \
+                     --output-prefix '$(basename "${DATA_PREFIX#/workspace/}")' \
+                     --tokenizer-model '$TOKENIZER_MODEL'"
     echo "✅ Data preprocessing completed"
 else
     echo "✅ Preprocessed data exists: $DATA_BIN_FILE"
@@ -81,7 +98,7 @@ docker run --rm --gpus all \
     -v "$TENSORBOARD_DIR:/workspace/training/tensorboard_logs/llama31_docker" \
     -w "/workspace/training" \
     --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 --shm-size=32g \
-    -e GPUS_PER_NODE=${GPUS_PER_NODE:-4} \
+    -e GPUS_PER_NODE=$GPUS_PER_NODE \
     -e TP_SIZE="$TP_SIZE" \
     -e PP_SIZE="$PP_SIZE" \
     -e CP_SIZE="$CP_SIZE" \
@@ -104,12 +121,16 @@ docker run --rm --gpus all \
     -e BASE_MODEL="$BASE_MODEL" \
     -e HF_TOKEN=${HF_TOKEN} \
     --name llama31_training_$(date +%Y%m%d_%H%M%S) \
+    -e PIP_CONSTRAINT= \
     $DOCKER_IMAGE \
-    bash train_llama31_instruct_8b.sh \
-        "/workspace/training/checkpoints/llama31_docker" \
-        "/workspace/training/tensorboard_logs/llama31_docker" \
-        "$TOKENIZER_MODEL" \
-        "$DATA_PREFIX"
+    bash -c "pip install datasets transformers tokenizers accelerate pyyaml && \
+             cd /workspace/Megatron-LM && pip install -e . && \
+             cd /workspace/training && \
+             bash train_llama31_instruct.sh \
+                 '/workspace/training/checkpoints/llama31_docker' \
+                 '/workspace/training/tensorboard_logs/llama31_docker' \
+                 '$TOKENIZER_MODEL' \
+                 '$DATA_PREFIX'"
 
 echo "🎉 Training completed!"
 echo "Checkpoints: $CHECKPOINT_DIR"

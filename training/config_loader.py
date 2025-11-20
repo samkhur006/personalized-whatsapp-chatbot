@@ -34,6 +34,26 @@ def config_to_env_vars(config: Dict[str, Any]) -> Dict[str, str]:
         env_vars['BASE_MODEL'] = model.get('base_model', 'meta-llama/Llama-3.1-8B-Instruct')
         env_vars['MODEL_NAME'] = model.get('name', 'llama31_instruct_8b')
         env_vars['LOAD_FROM_CHECKPOINT'] = str(model.get('load_from_checkpoint', False)).lower()
+
+        # Model architecture
+        env_vars['NUM_LAYERS'] = str(model.get('num_layers', 16))
+        env_vars['HIDDEN_SIZE'] = str(model.get('hidden_size', 2048))
+        env_vars['FFN_HIDDEN_SIZE'] = str(model.get('ffn_hidden_size', 8192))
+        env_vars['NUM_ATTENTION_HEADS'] = str(model.get('num_attention_heads', 32))
+        env_vars['NUM_QUERY_GROUPS'] = str(model.get('num_query_groups', 8))
+        env_vars['KV_CHANNELS'] = str(model.get('kv_channels', 64))
+        env_vars['POSITION_EMBEDDING_TYPE'] = model.get('position_embedding_type', 'rope')
+        env_vars['ROTARY_BASE'] = str(model.get('rotary_base', 500000))
+        env_vars['ROTARY_PERCENT'] = str(model.get('rotary_percent', 1.0))
+        env_vars['ATTENTION_DROPOUT'] = str(model.get('attention_dropout', 0.0))
+        env_vars['HIDDEN_DROPOUT'] = str(model.get('hidden_dropout', 0.0))
+        env_vars['USE_SWIGLU'] = str(model.get('swiglu', True)).lower()
+        env_vars['INIT_METHOD_STD'] = str(model.get('init_method_std', 0.0134))
+        env_vars['ATTENTION_BACKEND'] = model.get('attention_backend', 'fused')
+        env_vars['APPLY_LAYERNORM_1P'] = str(model.get('apply_layernorm_1p', True)).lower()
+        env_vars['UNTIE_EMBEDDINGS_AND_OUTPUT_WEIGHTS'] = str(model.get('untie_embeddings_and_output_weights', True)).lower()
+        env_vars['DISABLE_BIAS_LINEAR'] = str(model.get('disable_bias_linear', True)).lower()
+        env_vars['NORMALIZATION'] = model.get('normalization', 'RMSNorm')
     
     # Training configuration
     if 'training' in config:

@@ -17,7 +17,7 @@ This directory contains everything needed to train Llama 3.1 Instruct 8B using M
 
 3. **Start Training**:
    ```bash
-   ./train_llama31_instruct_8b.sh
+   ./train_llama31_instruct.sh
    ```
 
 4. **Monitor Training**:
@@ -28,7 +28,7 @@ This directory contains everything needed to train Llama 3.1 Instruct 8B using M
 ## 📁 Files Overview
 
 ### Core Scripts
-- **`train_llama31_instruct_8b.sh`** - Main training script with optimized configuration for Llama 3.1 Instruct 8B
+- **`train_llama31_instruct.sh`** - Main training script with optimized configuration for Llama 3.1 Instruct 8B
 - **`preprocess_hinglish_data.py`** - Data preprocessing script that converts Hinglish data to Megatron format
 - **`setup_environment.sh`** - Environment setup and dependency installation
 - **`monitor_training.py`** - Training monitoring and visualization utilities
@@ -112,10 +112,10 @@ python preprocess_hinglish_data.py --skip-megatron-preprocessing
 
 ```bash
 # Default configuration
-./train_llama31_instruct_8b.sh
+./train_llama31_instruct.sh
 
 # Custom paths
-./train_llama31_instruct_8b.sh \
+./train_llama31_instruct.sh \
   ./checkpoints/my_model \
   ./tensorboard_logs/my_model \
   meta-llama/Llama-3.1-8B-Instruct \
@@ -151,7 +151,7 @@ export TRAIN_STEPS=10000
 For testing without real data:
 
 ```bash
-DATA_PREFIX=MOCK ./train_llama31_instruct_8b.sh
+DATA_PREFIX=MOCK ./train_llama31_instruct.sh
 ```
 
 ## 📈 Monitoring
@@ -192,7 +192,7 @@ Training automatically resumes from the latest checkpoint:
 
 ```bash
 # Will automatically detect and load from checkpoint
-./train_llama31_instruct_8b.sh ./checkpoints/existing_model
+./train_llama31_instruct.sh ./checkpoints/existing_model
 ```
 
 ## 🐛 Troubleshooting
@@ -232,7 +232,7 @@ python monitor_training.py --mode watch --interval 10
 python preprocess_hinglish_data.py --input-file data.jsonl --skip-megatron-preprocessing
 
 # Test with mock data
-DATA_PREFIX=MOCK TRAIN_STEPS=10 ./train_llama31_instruct_8b.sh
+DATA_PREFIX=MOCK TRAIN_STEPS=10 ./train_llama31_instruct.sh
 ```
 
 ## 📋 Performance Benchmarks

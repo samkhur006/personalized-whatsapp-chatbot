@@ -142,8 +142,7 @@ def run_megatron_preprocessing(
             '--tokenizer-model', tokenizer_model,
             '--vocab-size', str(vocab_size),
             '--workers', str(workers),
-            '--append-eod',
-            '--chunk-size', '25'
+            '--append-eod'
         ]
         
         # Run preprocessing

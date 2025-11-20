@@ -15,9 +15,33 @@ This repository contains a complete pipeline for training and evaluating Llama 3
 git clone --recursive git@github.com:samkhur006/personalized-whatsapp-chatbot.git
 cd personalized-whatsapp-chatbot
 
+# Install Docker
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg lsb-release
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" \
+  | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo docker run hello-world
+sudo groupadd docker 2>/dev/null || true
+sudo usermod -aG docker "$USER"
+
+
 # Install dependencies
+sudo apt update
+sudo apt install -y pybind11-dev python3-pybind11 build-essential python3-dev 
+# pybind11 ninja
+
+
 pip install --no-build-isolation megatron-core[mlm,dev]
-cd Megatron-LM && pip install --no-build-isolation .[mlm,dev] && cd ..
+cd Megatron-LM && pip install --no-build-isolation --no-deps -e ".[mlm,dev]" && cd ..
 cd lm-evaluation-harness && pip install -e . && cd ..
 ```
 
@@ -60,6 +84,8 @@ Train your own Llama 3.1 model on Hinglish data:
 
 #### **Setup**
 ```bash
+docker build -f Dockerfile.custom -t megatron-llama-hinglish:latest .
+
 cd training
 chmod +x docker_train.sh
 
@@ -118,8 +144,8 @@ python preprocess_hinglish_data.py --use-hinglish-top
 nano config.yaml
 
 # Start training (uses config.yaml automatically)
-chmod +x train_llama31_instruct_8b.sh
-./train_llama31_instruct_8b.sh
+chmod +x train_llama31_instruct.sh
+./train_llama31_instruct.sh
 ```
 
 #### **Monitor Training**
@@ -234,9 +260,10 @@ personalized-whatsapp-chatbot/
 │   ├── hinglish_perplexity.yaml   # Perplexity task definition
 │   └── utils.py                    # Dataset loading utilities
 ├── training/                       # Training tools
-│   ├── config.yaml                # Training configuration
+│   ├── config.yaml                # Default Llama 3.1 8B training configuration
+│   ├── config_1b.yaml             # Llama 3.2 1B training configuration
 │   ├── docker_train.sh            # Docker training script
-│   ├── train_llama31_instruct_8b.sh # Native training script
+│   ├── train_llama31_instruct.sh  # Native training script (config-driven)
 │   ├── preprocess_hinglish_data.py # Data preprocessing
 │   ├── convert_megatron_to_hf.py  # Model format conversion
 │   ├── convert_and_eval.sh        # Automated conversion + eval
@@ -439,7 +466,7 @@ cd eval && ./evaluate_hinglish_models.sh
 cd training && export HF_TOKEN=xxx && ./docker_train.sh
 
 # Training (Native)
-cd training && ./setup_environment.sh && ./train_llama31_instruct_8b.sh
+cd training && ./setup_environment.sh && ./train_llama31_instruct.sh
 
 # Evaluate trained model
 cd training && ./convert_and_eval.sh
