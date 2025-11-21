@@ -6,7 +6,7 @@
 # Set common parameters
 CACHE_DIR="/home/ubuntu/hf_models"
 OUTPUT_DIR="/home/ubuntu/eval_output"
-BATCH_SIZE=1
+BATCH_SIZE=16
 TASKS="hinglish_translation,hinglish_perplexity"
 
 # Create output directory if it doesn't exist
@@ -14,9 +14,8 @@ mkdir -p "$OUTPUT_DIR"
 
 # Array of models to evaluate
 models=(
-    "Qwen/Qwen2.5-14B"
     "meta-llama/Llama-3.1-8B-Instruct"
-    "Qwen/Qwen3-8B"
+    # "Qwen/Qwen3-8B"
     # Add your trained model path here:
     # "../training/converted_models/llama31_hinglish_hf"
 )
@@ -35,13 +34,16 @@ evaluate_model() {
     echo "=========================================="
     
     # Run the evaluation
+    nsys profile \
+    --stats=true \
+    --output=inference_profile \
     python -m lm_eval \
         --model hf \
         --model_args pretrained="$model",trust_remote_code=True,device_map=auto,cache_dir="$CACHE_DIR" \
         --tasks "$TASKS" \
         --batch_size "$BATCH_SIZE" \
         --log_samples \
-        --limit 1000 \
+        --limit 160 \
         --output_path "$output_path" \
         --include_path "$(dirname "$0")"
     

@@ -13,6 +13,8 @@ This repository contains a complete pipeline for training and evaluating Llama 3
 ### **Setup**
 ```bash
 git clone --recursive git@github.com:samkhur006/personalized-whatsapp-chatbot.git
+python -m venv venv
+source venv/bin/activate
 cd personalized-whatsapp-chatbot
 
 # Install Docker
@@ -37,6 +39,8 @@ sudo usermod -aG docker "$USER"
 # Install dependencies
 sudo apt update
 sudo apt install -y pybind11-dev python3-pybind11 build-essential python3-dev 
+
+pip install pybind11
 # pybind11 ninja
 
 
@@ -80,28 +84,8 @@ cat /home/ubuntu/eval_output/MODEL_NAME_TIMESTAMP/results.json
 
 Train your own Llama 3.1 model on Hinglish data:
 
-### **Method 1: Docker Training (Recommended)**
+### **Method 1:  Training (Recommended)**
 
-#### **Setup**
-```bash
-docker build -f Dockerfile.custom -t megatron-llama-hinglish:latest .
-
-cd training
-chmod +x docker_train.sh
-
-# Set your HuggingFace token
-export HF_TOKEN=your_huggingface_token_here
-```
-
-#### **Configure Training**
-```bash
-# Edit config.yaml to customize training parameters
-nano config.yaml
-
-# Example modifications:
-# - Change batch sizes, learning rate, training steps
-# - Use different base model or checkpoint
-# - Adjust parallelism settings
 ```
 
 #### **Start Training**
